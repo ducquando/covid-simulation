@@ -3,4 +3,3 @@ pandas
 matplotlib
 networkx
 streamlit
-opencv-python-headless

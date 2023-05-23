@@ -1,10 +1,12 @@
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import networkx as nx
-import numpy as np
+import cv2 as cv
 import random
 import os
 from itertools import repeat
+from matplotlib.backends.backend_agg import FigureCanvas
 
 class SIR:
     def __init__(self, network_type, time = 1000, population = 1000, num_infect = 50, num_removed = 0, net_size = 4, rate_si = 0.05, rate_ir = 0.01, folder = "simulation", **kwargs):
@@ -35,13 +37,14 @@ class SIR:
         np.random.seed(242)
         quarantine = kwargs.get('is_quarantine', False)
         social_distancing = kwargs.get('is_social_distancing', False)
+        online = kwargs.get('is_online', False)
         
         # Simulation params
         self.network, self.status = self.init_network(network_type), self.init_status()
         self.results = None
         
         # Run the model
-        self.run(quarantine, social_distancing)
+        self.run(quarantine, social_distancing, online)
     
     
     def init_network(self, n_type):
@@ -120,7 +123,7 @@ class SIR:
         return network, status, susceptible, infectious + quarantine, removed
 
         
-    def run(self, quarantine, social_distancing):
+    def run(self, quarantine, social_distancing, online):
         """
         Run the model
         """
@@ -132,11 +135,15 @@ class SIR:
 
         # Recursively run
         for step in range(2, self.time + 3):
+            print(step, self.time + 3)
             # Store data at all time steps
             self.results = pd.DataFrame.from_dict({'Time': list(range(step)), 'Susceptible': suscept, 'Infectious': infectious, 'Removed': removed}, orient = 'index').transpose()
             
             # Visualize network
-            self.make_plot(filename = str(step))
+            if online:
+                self.make_plot_online(filename = str(step))
+            else:
+                self.make_plot(filename = str(step))
             
             # Update network
             _, _, this_suscept, this_infectious, this_removed = self.update_status(quarantine, social_distancing)
@@ -211,6 +218,28 @@ class SIR:
         # Save diagrams
         plt.savefig(f"outputs/{self.net_type}/{filename}.jpg")
         plt.close()
+
+    def make_histogram_online(self, filename = "degree"):
+        """
+        Visualize the network's degree histogram
+        """
+        # Get network degree
+        network = self.network.copy()
+        degree_sequence = sorted((d for n, d in network.degree()), reverse = True)
+        
+        # Draw diagram
+        fig = plt.figure(figsize = (16, 9))
+        plt.bar(*np.unique(degree_sequence, return_counts = True))
+        plt.title(f"Degree histogram of {self.net_type}")
+        plt.xlabel("Degree")
+        plt.ylabel("# of Nodes")
+        
+        # Convert figure to image
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+        img = cv.cvtColor(np.array(fig.canvas.get_renderer()._renderer), cv.COLOR_RGB2BGR)
+        
+        return img
     
     
     def make_plot(self, filename = "test"):
@@ -235,6 +264,30 @@ class SIR:
         # Save diagrams
         plt.savefig(f"outputs/{self.net_type}/{self.folder}/{filename}.jpg")
         plt.close()
+
+
+    def make_plot_online(self, filename = "test"):
+        """
+        Visualize network and its Covid status
+        """
+        # Get current simuation params
+        network, status = self.network.copy(), self.status.copy()
+        
+        # Draw diagram
+        fig = plt.figure(figsize = (16, 9))
+        
+        # Draw network
+        self.visualize_network(fig)
+        
+        # Draw status
+        self.visualize_statuses(fig)
+        
+        # Add legend and title
+        fig.suptitle(r'{0} network, $\beta = {1}, \gamma = {2}, R_0 = {3}$'.format(self.net_type, self.rate_si, self.rate_ir, round(self.rate_reproduction, 3)))
+        
+        # Save diagrams
+        plt.savefig(f"outputs/on-demand/simulation/{filename}.jpg")
+        plt.close()
         
         
     def make_video(self, name = 'test.mp4'):
@@ -249,11 +302,11 @@ class SIR:
         Make video on request from Streamlit
         """
         # Create video
-        os.system(f"ffmpeg -f image2 -r 5 -i outputs/{self.net_type}/{self.folder}/%01d.jpg -vcodec mpeg4 -y ./outputs/{self.net_type}/{name}")
+        os.system(f"ffmpeg -f image2 -r 5 -i outputs/on-demand/simulation/%01d.jpg -vcodec mpeg4 -y ./outputs/on-demand/{name}")
 
         # Display the video
-        video = open(f"./output/{name}.mp4", 'rb')
-        video = podcast.read()
+        video = open(f"./outputs/on-demand/{name}", 'rb')
+        video = video.read()
         
         return video
         

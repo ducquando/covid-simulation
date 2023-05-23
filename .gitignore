@@ -1,0 +1,12 @@
+#ignore .ipynb files
+*.ipynb
+
+#ignore DS_Store
+.DS_Store
+*/.DS_Store
+**.DS_Store
+
+#ignore images
+outputs/small-world/*
+outputs/scale-free/*
+outputs/random/*
