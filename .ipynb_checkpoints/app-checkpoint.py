@@ -1,5 +1,5 @@
 import streamlit as st
-from SIRmodel import SIR
+from SIRmodel import SIROnline
 
 def main():
     # Init model
@@ -9,7 +9,7 @@ def main():
         st.header("Simulation options")
         
         # Choose network type
-        network_options = ("Scale-free", "Small-world", "Random")
+        network_options = ("scale-free", "small-world", "random")
         network_selected = st.selectbox(label = "Network type", options = network_options)
         
         # Select population size
@@ -34,17 +34,17 @@ def main():
 
     # Display graphs
     if pressed:
-        covid = SIR(network_type = network_selected, population = population_selected,
-                    time = time_selected, rate_si = rate_si_selected, rate_ir = rate_ri_selected, is_online = True)
+        covid = SIROnline(network_type = network_selected, population = population_selected,
+                          time = time_selected, rate_si = rate_si_selected, rate_ir = rate_ri_selected, is_online = True)
 
         # Distribution
         st.subheader("Personal network degree distribution")
-        img_bytes = covid.make_histogram_online()
+        img_bytes = covid.make_histogram()
         st.image(img_bytes)
             
         # Video
         st.subheader("Covid simulation")
-        video_bytes = covid.make_video_online("simulation.mp4")
+        video_bytes = covid.make_video("simulation.mp4")
         st.video(video_bytes, format = "video/mp4", start_time = 0)
         
 

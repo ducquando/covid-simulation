@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import networkx as nx
 import cv2 as cv
+import av
+import io
 import random
 import os
 from itertools import repeat
@@ -44,7 +46,7 @@ class SIR:
         self.results = None
         
         # Run the model
-        self.run(quarantine, social_distancing, online)
+        self.covid_simulation = self.run(quarantine, social_distancing, online)
     
     
     def init_network(self, n_type):
@@ -129,21 +131,16 @@ class SIR:
         """
         # Initialize list to store data at all time steps
         suscept, infectious, removed = [self.suscept] * 2, [self.infectious] * 2, [self.removed] * 2
-        
-        # Get degree historgram
-        self.make_histogram()
+        all_network = []
 
         # Recursively run
         for step in range(2, self.time + 3):
-            print(step, self.time + 3)
             # Store data at all time steps
             self.results = pd.DataFrame.from_dict({'Time': list(range(step)), 'Susceptible': suscept, 'Infectious': infectious, 'Removed': removed}, orient = 'index').transpose()
             
             # Visualize network
-            if online:
-                self.make_plot_online(filename = str(step))
-            else:
-                self.make_plot(filename = str(step))
+            curr_network = self.make_plot(filename = str(step))
+            all_network.append(curr_network)
             
             # Update network
             _, _, this_suscept, this_infectious, this_removed = self.update_status(quarantine, social_distancing)
@@ -153,6 +150,8 @@ class SIR:
             
             # Update reproudction rate
             self.rate_reproduction = (infectious[-1] - infectious[-2]) / infectious[-2]
+
+        return all_network
             
             
     def visualize_network(self, fig):
@@ -219,28 +218,6 @@ class SIR:
         plt.savefig(f"outputs/{self.net_type}/{filename}.jpg")
         plt.close()
 
-    def make_histogram_online(self, filename = "degree"):
-        """
-        Visualize the network's degree histogram
-        """
-        # Get network degree
-        network = self.network.copy()
-        degree_sequence = sorted((d for n, d in network.degree()), reverse = True)
-        
-        # Draw diagram
-        fig = plt.figure(figsize = (16, 9))
-        plt.bar(*np.unique(degree_sequence, return_counts = True))
-        plt.title(f"Degree histogram of {self.net_type}")
-        plt.xlabel("Degree")
-        plt.ylabel("# of Nodes")
-        
-        # Convert figure to image
-        canvas = FigureCanvas(fig)
-        canvas.draw()
-        img = cv.cvtColor(np.array(fig.canvas.get_renderer()._renderer), cv.COLOR_RGB2BGR)
-        
-        return img
-    
     
     def make_plot(self, filename = "test"):
         """
@@ -265,8 +242,39 @@ class SIR:
         plt.savefig(f"outputs/{self.net_type}/{self.folder}/{filename}.jpg")
         plt.close()
 
+        
+    def make_video(self, name = 'test.mp4'):
+        """
+        Make video from sequential frames
+        """
+        os.system(f"ffmpeg -f image2 -r 5 -i outputs/{self.net_type}/{self.folder}/%01d.jpg -vcodec mpeg4 -y ./outputs/{self.net_type}/{name}")
 
-    def make_plot_online(self, filename = "test"):
+
+class SIROnline(SIR):
+    def make_histogram(self, filename = "degree"):
+        """
+        Visualize the network's degree histogram
+        """
+        # Get network degree
+        network = self.network.copy()
+        degree_sequence = sorted((d for n, d in network.degree()), reverse = True)
+        
+        # Draw diagram
+        fig = plt.figure(figsize = (16, 9))
+        plt.bar(*np.unique(degree_sequence, return_counts = True))
+        plt.title(f"Degree histogram of {self.net_type}")
+        plt.xlabel("Degree")
+        plt.ylabel("# of Nodes")
+        
+        # Convert figure to image
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+        img = np.array(fig.canvas.get_renderer()._renderer)
+        plt.close()
+        
+        return img
+        
+    def make_plot(self, filename = "test"):
         """
         Visualize network and its Covid status
         """
@@ -285,67 +293,82 @@ class SIR:
         # Add legend and title
         fig.suptitle(r'{0} network, $\beta = {1}, \gamma = {2}, R_0 = {3}$'.format(self.net_type, self.rate_si, self.rate_ir, round(self.rate_reproduction, 3)))
         
-        # Save diagrams
-        plt.savefig(f"outputs/on-demand/simulation/{filename}.jpg")
+        # Convert figure to image
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+        img = cv.cvtColor(np.array(fig.canvas.get_renderer()._renderer), cv.COLOR_RGB2BGR)
         plt.close()
         
-        
+        return img
+    
     def make_video(self, name = 'test.mp4'):
-        """
-        Make video from sequential frames
-        """
-        os.system(f"ffmpeg -f image2 -r 5 -i outputs/{self.net_type}/{self.folder}/%01d.jpg -vcodec mpeg4 -y ./outputs/{self.net_type}/{name}")
-
-        
-    def make_video_online(self, name = 'test.mp4'):
         """
         Make video on request from Streamlit
         """
-        # Create video
-        os.system(f"ffmpeg -f image2 -r 5 -i outputs/on-demand/simulation/%01d.jpg -vcodec mpeg4 -y ./outputs/on-demand/{name}")
+        # Select video resolution and frame rate.
+        frames = self.covid_simulation
+        n_frames, width, height, fps = len(frames), frames[0].shape[1], frames[0].shape[0], 5
+        video = io.BytesIO() 
 
-        # Display the video
-        video = open(f"./outputs/on-demand/{name}", 'rb')
-        video = video.read()
-        
+         # Open "in memory file" as MP4 video output
+        output = av.open(video, 'w', format = "mp4")
+        stream = output.add_stream('h264', str(fps))
+        stream.width = width; stream.height = height
+        stream.pix_fmt = 'yuv420p'; stream.options = {'crf': '17'}
+
+        # Iterate the created images, encode and write to MP4 memory file.
+        for i in range(n_frames):
+            img = frames[i]
+            frame = av.VideoFrame.from_ndarray(img, format = 'bgr24') 
+            packet = stream.encode(frame)  # Encode video frame
+            output.mux(packet)  # "Mux" the encoded frame (add the encoded frame to MP4 file).
+
+        # Flush the encoder
+        packet = stream.encode(None)
+        output.mux(packet)
+        output.close()
+
+        # Seek to the beginning of the BytesIO.
+        video.seek(0)  
         return video
+
         
-        
-def main():
-    # Set params
-    networks = ["random", "scale-free", "small-world"]
-    POPULATION = 300000
-    TIME = 30 # days
-    RATE_IMMUNE = 0.53
-    RATE_SI = 1 - RATE_IMMUNE
-    RATE_RI = 0.178
-    
-    # Random network without quarantine
-    rd = SIR(networks[0], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-    rd.make_histogram()
-    rd.make_video("simulation.mp4")
-     
-    # Small world network without quarantine
-    sw = SIR(networks[2], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-    sw.make_histogram()
-    sw.make_video("simulation.mp4")
-    
-    # Scale-free network without quarantine
-    sf1 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-    sf1.make_histogram()
-    sf1.make_video("simulation.mp4")
-    
-    # Scale-free network with quarantine
-    sf2 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "quarantine", is_quarantine = True)
-    sf2.make_video("quarantine.mp4")
-    
-    # Scale-free network with social distancing
-    sf3 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "social_distancing", is_social_distancing = True)
-    sf3.make_video("social_distancing.mp4")
-    
-    # Scale-free network with quarantine and social distancing
-    sf4 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "pandemic", is_quarantine = True, is_social_distancing = True)
-    sf4.make_video("pandemic.mp4")
-    
-if __name__ == "__main__":
-    main()
+#
+#def main():
+#    # Set params
+#    networks = ["random", "scale-free", "small-world"]
+#    POPULATION = 300000
+#    TIME = 30 # days
+#    RATE_IMMUNE = 0.53
+#    RATE_SI = 1 - RATE_IMMUNE
+#    RATE_RI = 0.178
+#
+#    # Random network without quarantine
+#    rd = SIR(networks[0], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
+#    rd.make_histogram()
+#    rd.make_video("simulation.mp4")
+#
+#    # Small world network without quarantine
+#    sw = SIR(networks[2], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
+#    sw.make_histogram()
+#    sw.make_video("simulation.mp4")
+#
+#    # Scale-free network without quarantine
+#    sf1 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
+#    sf1.make_histogram()
+#    sf1.make_video("simulation.mp4")
+#
+#    # Scale-free network with quarantine
+#    sf2 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "quarantine", is_quarantine = True)
+#    sf2.make_video("quarantine.mp4")
+#
+#    # Scale-free network with social distancing
+#    sf3 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "social_distancing", is_social_distancing = True)
+#    sf3.make_video("social_distancing.mp4")
+#
+#    # Scale-free network with quarantine and social distancing
+#    sf4 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "pandemic", is_quarantine = True, is_social_distancing = True)
+#    sf4.make_video("pandemic.mp4")
+#
+#if __name__ == "__main__":
+#    main()
