@@ -1,5 +1,9 @@
 #ignore .ipynb files
-*.ipynb
+.ipynb_checkpoints
+*.ipynb_checkpoints
+**.ipynb_checkpoints
+***.ipynb_checkpoints
+notebook.ipynb
 
 #ignore DS_Store
 .DS_Store

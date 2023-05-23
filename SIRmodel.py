@@ -129,13 +129,9 @@ class SIR:
         """
         # Initialize list to store data at all time steps
         suscept, infectious, removed = [self.suscept] * 2, [self.infectious] * 2, [self.removed] * 2
-        
-        # Get degree historgram
-        self.make_histogram()
 
         # Recursively run
         for step in range(2, self.time + 3):
-            print(step, self.time + 3)
             # Store data at all time steps
             self.results = pd.DataFrame.from_dict({'Time': list(range(step)), 'Susceptible': suscept, 'Infectious': infectious, 'Removed': removed}, orient = 'index').transpose()
             
@@ -310,42 +306,42 @@ class SIR:
         
         return video
         
-        
-def main():
-    # Set params
-    networks = ["random", "scale-free", "small-world"]
-    POPULATION = 300000
-    TIME = 30 # days
-    RATE_IMMUNE = 0.53
-    RATE_SI = 1 - RATE_IMMUNE
-    RATE_RI = 0.178
-    
-    # Random network without quarantine
-    rd = SIR(networks[0], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-    rd.make_histogram()
-    rd.make_video("simulation.mp4")
-     
-    # Small world network without quarantine
-    sw = SIR(networks[2], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-    sw.make_histogram()
-    sw.make_video("simulation.mp4")
-    
-    # Scale-free network without quarantine
-    sf1 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-    sf1.make_histogram()
-    sf1.make_video("simulation.mp4")
-    
-    # Scale-free network with quarantine
-    sf2 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "quarantine", is_quarantine = True)
-    sf2.make_video("quarantine.mp4")
-    
-    # Scale-free network with social distancing
-    sf3 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "social_distancing", is_social_distancing = True)
-    sf3.make_video("social_distancing.mp4")
-    
-    # Scale-free network with quarantine and social distancing
-    sf4 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "pandemic", is_quarantine = True, is_social_distancing = True)
-    sf4.make_video("pandemic.mp4")
-    
-if __name__ == "__main__":
-    main()
+#
+#def main():
+#    # Set params
+#    networks = ["random", "scale-free", "small-world"]
+#    POPULATION = 300000
+#    TIME = 30 # days
+#    RATE_IMMUNE = 0.53
+#    RATE_SI = 1 - RATE_IMMUNE
+#    RATE_RI = 0.178
+#
+#    # Random network without quarantine
+#    rd = SIR(networks[0], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
+#    rd.make_histogram()
+#    rd.make_video("simulation.mp4")
+#
+#    # Small world network without quarantine
+#    sw = SIR(networks[2], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
+#    sw.make_histogram()
+#    sw.make_video("simulation.mp4")
+#
+#    # Scale-free network without quarantine
+#    sf1 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
+#    sf1.make_histogram()
+#    sf1.make_video("simulation.mp4")
+#
+#    # Scale-free network with quarantine
+#    sf2 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "quarantine", is_quarantine = True)
+#    sf2.make_video("quarantine.mp4")
+#
+#    # Scale-free network with social distancing
+#    sf3 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "social_distancing", is_social_distancing = True)
+#    sf3.make_video("social_distancing.mp4")
+#
+#    # Scale-free network with quarantine and social distancing
+#    sf4 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "pandemic", is_quarantine = True, is_social_distancing = True)
+#    sf4.make_video("pandemic.mp4")
+#
+#if __name__ == "__main__":
+#    main()
