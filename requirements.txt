@@ -3,5 +3,6 @@ av
 pandas
 matplotlib
 networkx
+scipy
 streamlit
 opencv-python-headless
