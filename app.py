@@ -13,16 +13,21 @@ def main():
         network_selected = st.selectbox(label = "Network type", options = network_options)
         
         # Select population size
-        population_selected = st.slider('Population size', 200, 2000, 400, 200)
+        st.caption("We suggest choosing a small population size (e.g. 400-1000) for fast computation")
+        population_selected = st.slider('Population size', 200, 300000, 400, 200)
         
         # Select time steps
         time_selected = st.slider('Number of days', 10, 30, 30, 5)
         
         # Select rate si
-        rate_si_selected = st.slider('Susceptible to Infectious rate', 0.0, 1.0, 0.30, 0.01)
+        
+        rate_si_selected = st.number_input('Susceptible to Infectious rate', 0.0, 1.0, 0.00000360918393)
         
         # Select rate ir
-        rate_ri_selected = st.slider('Infectious to Recovered rate',  0.0, 1.0, 0.18, 0.01)
+        rate_ri_selected = st.number_input('Infectious to Recovered rate',  0.0, 1.0, 0.18)
+
+        # Choose quarantine
+        quarantine_selected = st.checkbox('Quarantine?')
         
         # Change model once pressed
         if st.button('Generate'):
@@ -35,7 +40,7 @@ def main():
     # Display graphs
     if pressed:
         covid = SIROnline(network_type = network_selected, population = population_selected,
-                          time = time_selected, rate_si = rate_si_selected, rate_ir = rate_ri_selected, is_online = True)
+                          time = time_selected, rate_si = rate_si_selected, rate_ir = rate_ri_selected, is_online = True, is_quarantine = quarantine_selected)
 
         # Distribution
         st.subheader("Personal network degree distribution")

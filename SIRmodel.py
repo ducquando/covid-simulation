@@ -38,7 +38,6 @@ class SIR:
         # Set the randomization and get kwargs
         np.random.seed(242)
         quarantine = kwargs.get('is_quarantine', False)
-        social_distancing = kwargs.get('is_social_distancing', False)
         online = kwargs.get('is_online', False)
         
         # Simulation params
@@ -46,7 +45,7 @@ class SIR:
         self.results = None
         
         # Run the model
-        self.covid_simulation = self.run(quarantine, social_distancing, online)
+        self.covid_simulation = self.run(quarantine, online)
     
     
     def init_network(self, n_type):
@@ -91,7 +90,7 @@ class SIR:
         return statuses
     
     
-    def update_status(self, quarantine, social_distancing):    
+    def update_status(self, quarantine):    
         """
         Update the network's status
         """
@@ -101,10 +100,8 @@ class SIR:
         # Update infectious
         infected = np.where(status == 1)[0]
         for person in infected:
-            # Apply social distancing
-            social_rate = 0.5 if social_distancing else 1
             for friend in network[person]:
-                if np.random.uniform(0,1) < self.rate_si and np.random.uniform(0,1) <= social_rate:
+                if np.random.uniform(0,1) < self.rate_si:
                     status[friend] = 1
                 
             # Be moved to quarantine if set `quarantine = True`
@@ -125,7 +122,7 @@ class SIR:
         return network, status, susceptible, infectious + quarantine, removed
 
         
-    def run(self, quarantine, social_distancing, online):
+    def run(self, quarantine, online):
         """
         Run the model
         """
@@ -143,13 +140,13 @@ class SIR:
             all_network.append(curr_network)
             
             # Update network
-            _, _, this_suscept, this_infectious, this_removed = self.update_status(quarantine, social_distancing)
+            _, _, this_suscept, this_infectious, this_removed = self.update_status(quarantine)
             suscept.append(this_suscept)
             infectious.append(this_infectious)
             removed.append(this_removed)
             
             # Update reproudction rate
-            self.rate_reproduction = (infectious[-1] - infectious[-2]) / infectious[-2]
+            self.rate_reproduction = 0 if infectious[-2] == 0 else (infectious[-1] - infectious[-2]) / infectious[-2] 
 
         return all_network
             
@@ -331,44 +328,3 @@ class SIROnline(SIR):
         # Seek to the beginning of the BytesIO.
         video.seek(0)  
         return video
-
-        
-#
-#def main():
-#    # Set params
-#    networks = ["random", "scale-free", "small-world"]
-#    POPULATION = 300000
-#    TIME = 30 # days
-#    RATE_IMMUNE = 0.53
-#    RATE_SI = 1 - RATE_IMMUNE
-#    RATE_RI = 0.178
-#
-#    # Random network without quarantine
-#    rd = SIR(networks[0], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-#    rd.make_histogram()
-#    rd.make_video("simulation.mp4")
-#
-#    # Small world network without quarantine
-#    sw = SIR(networks[2], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-#    sw.make_histogram()
-#    sw.make_video("simulation.mp4")
-#
-#    # Scale-free network without quarantine
-#    sf1 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI)
-#    sf1.make_histogram()
-#    sf1.make_video("simulation.mp4")
-#
-#    # Scale-free network with quarantine
-#    sf2 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "quarantine", is_quarantine = True)
-#    sf2.make_video("quarantine.mp4")
-#
-#    # Scale-free network with social distancing
-#    sf3 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "social_distancing", is_social_distancing = True)
-#    sf3.make_video("social_distancing.mp4")
-#
-#    # Scale-free network with quarantine and social distancing
-#    sf4 = SIR(networks[1], time = TIME, rate_si = RATE_SI, rate_ir = RATE_RI, folder = "pandemic", is_quarantine = True, is_social_distancing = True)
-#    sf4.make_video("pandemic.mp4")
-#
-#if __name__ == "__main__":
-#    main()
